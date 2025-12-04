@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""
+Apply karaoke subtitles to highlight clips using aligned_transcript.json.
+"""
+import os
+import json
+import subprocess
+import sys
+
+def make_karaoke_ass_from_words(words, ass_file, font="Arial", font_size=48):
+    """Create ASS subtitle file from word timestamps."""
+    with open(ass_file, "w", encoding="utf-8") as f:
+        f.write("[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\n")
+        f.write("Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, Bold, Italic, Underline, "
+                "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
+                "MarginR, MarginV, Encoding\n")
+        f.write(f"Style: Default,{font},{font_size},&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,"
+                f"1,1,0,2,10,10,10,1\n\n[Events]\n")
+        for w in words:
+            start_time = format_ass_time(w["start"])
+            end_time = format_ass_time(w["end"])
+            f.write(f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{w['word']}\n")
+
+def format_ass_time(seconds):
+    """Convert seconds to ASS time format (H:MM:SS.cc)."""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    cs = int((seconds - int(seconds)) * 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+def words_for_segment(words, start, end):
+    """Get words within a time segment."""
+    return [w for w in words if start <= w.get("start", 0) <= end]
+
+def apply_karaoke_to_clip(clip_path, highlights_json_path, aligned_transcript_path):
+    """Apply karaoke subtitles to a single clip."""
+    # Load highlights to get clip timing
+    with open(highlights_json_path, "r", encoding="utf-8") as f:
+        highlights = json.load(f)
+    
+    # Find matching clip
+    clip_name = os.path.basename(clip_path)
+    clip_info = None
+    for clip in highlights.get("clips", []):
+        if clip.get("filename") in clip_name or clip_name.endswith(clip.get("filename", "")):
+            clip_info = clip
+            break
+    
+    if not clip_info:
+        print(f"⚠️  Could not find clip info for {clip_name}")
+        return False
+    
+    clip_start = clip_info.get("start", 0)
+    clip_end = clip_info.get("end", 0)
+    
+    # Load aligned transcript
+    with open(aligned_transcript_path, "r", encoding="utf-8") as f:
+        aligned = json.load(f)
+    
+    # Collect all words
+    all_words = []
+    for seg in aligned:
+        for word in seg.get("words", []):
+            all_words.append({
+                "word": word.get("word", "").strip(),
+                "start": word.get("start", 0),
+                "end": word.get("end", 0)
+            })
+    
+    # Get words for this clip
+    clip_words = words_for_segment(all_words, clip_start, clip_end)
+    
+    if not clip_words:
+        print(f"⚠️  No words found for clip {clip_name}")
+        return False
+    
+    # Adjust word timestamps relative to clip start
+    adjusted_words = []
+    for w in clip_words:
+        adjusted_words.append({
+            "word": w["word"],
+            "start": w["start"] - clip_start,
+            "end": w["end"] - clip_start
+        })
+    
+    # Create ASS file
+    ass_file = clip_path.replace(".mp4", ".ass")
+    make_karaoke_ass_from_words(adjusted_words, ass_file)
+    
+    # Burn subtitles into video
+    output_path = clip_path.replace(".mp4", "_karaoke.mp4")
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", clip_path,
+        "-vf", f"subtitles={ass_file}",
+        "-c:a", "copy",
+        output_path
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"  ✅ {os.path.basename(output_path)}")
+        return True
+    except subprocess.CalledProcessError:
+        print(f"  ⚠️  Failed: {clip_path}")
+        return False
+
+if __name__ == "__main__":
+    highlights_dir = "highlights"
+    highlights_json = "highlights.json"
+    aligned_transcript = "aligned_transcript.json"
+    
+    if not os.path.exists(highlights_dir):
+        print(f"❌ {highlights_dir} directory not found")
+        sys.exit(1)
+    
+    if not os.path.exists(highlights_json):
+        print(f"❌ {highlights_json} not found. Run highlight generator first.")
+        sys.exit(1)
+    
+    if not os.path.exists(aligned_transcript):
+        print(f"❌ {aligned_transcript} not found. Run transcription first.")
+        sys.exit(1)
+    
+    video_files = [f for f in os.listdir(highlights_dir) 
+                  if f.endswith(".mp4") and not f.endswith("_karaoke.mp4")]
+    
+    if not video_files:
+        print(f"❌ No video files found in {highlights_dir}")
+        sys.exit(1)
+    
+    print(f"🎤 Applying karaoke subtitles to {len(video_files)} clips...")
+    
+    for video_file in video_files:
+        clip_path = os.path.join(highlights_dir, video_file)
+        print(f"  Processing: {video_file}...")
+        apply_karaoke_to_clip(clip_path, highlights_json, aligned_transcript)
+    
+    print("\n✅ Karaoke subtitles applied!")
+

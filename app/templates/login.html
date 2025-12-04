@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Sign in - OpusClip</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/media/css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="h-full bg-black text-gray-100 font-sans overflow-hidden">
+
+  <!-- Background Text -->
+  <div class="opus-bg-text">OpusClip</div>
+
+  <div
+    class="min-h-screen flex flex-col lg:flex-row items-center justify-center px-4 lg:px-16 gap-12 content-layer relative z-10">
+    <!-- Left: Auth card -->
+    <div class="w-full max-w-md bg-[#111111] rounded-3xl shadow-2xl border border-white/10 p-8 space-y-6">
+      <div class="space-y-1 text-center lg:text-left">
+        <h1 class="text-3xl font-bold">Welcome Back</h1>
+        <p class="text-sm text-gray-400">Sign in to create viral clips in seconds.</p>
+      </div>
+
+      <div class="space-y-3 mt-6">
+        <a href="/auth/login"
+          class="flex items-center justify-center gap-3 rounded-xl bg-white text-black py-4 text-sm font-bold hover:bg-gray-200 transition shadow-lg">
+          <i class="fa-brands fa-google text-lg"></i>
+          <span>Continue with Google</span>
+        </a>
+      </div>
+
+      <p class="mt-6 text-[10px] leading-relaxed text-gray-500 text-center">
+        By continuing, you agree to our Terms of Service and acknowledge our Privacy Policy.
+      </p>
+    </div>
+
+    <!-- Right: Hero Text -->
+    <div class="hidden lg:flex flex-col items-start gap-6 max-w-lg">
+      <div class="space-y-2">
+        <p class="text-xs font-bold tracking-widest text-pink-500 uppercase">#1 AI Video Clipping Tool</p>
+        <h2 class="text-5xl font-black leading-tight">
+          Turn long videos into <span
+            class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">viral shorts.</span>
+        </h2>
+      </div>
+      <p class="text-base text-gray-400 leading-relaxed">
+        Automatically turn your long-form content into engaging short clips ready for social media.
+        Upload a video or paste a YouTube link, and let the AI do the heavy lifting.
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>

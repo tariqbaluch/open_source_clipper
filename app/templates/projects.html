@@ -1,0 +1,164 @@
+{% extends "base_step.html" %}
+
+{% block content %}
+<div class="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Top Bar -->
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-4">
+            <button
+                class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#1a1a1a] border border-white/10 text-white hover:bg-white/10 transition">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+        <div class="flex items-center gap-4">
+            <i class="fa-regular fa-bell text-gray-400 hover:text-white cursor-pointer"></i>
+            <div class="flex items-center gap-1 text-yellow-500 font-bold text-sm">
+                <i class="fa-solid fa-bolt"></i> 37
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Header -->
+    <div class="space-y-6">
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-400">
+            <span class="text-white">All projects (<span id="project-count">0</span>)</span>
+            <span>Saved projects (0)</span>
+        </div>
+
+        <!-- Storage Info -->
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-500 tracking-wider">0 GB / 0 GB</span>
+            <div class="flex gap-4">
+                <div class="flex items-center gap-2 bg-[#1a1a1a] px-3 py-1.5 rounded-lg border border-white/10">
+                    <div class="w-2 h-2 rounded-full bg-gray-500"></div>
+                    <span class="text-xs font-bold text-gray-300">Auto-save</span>
+                </div>
+                <div class="flex items-center gap-2 bg-[#1a1a1a] px-3 py-1.5 rounded-lg border border-white/10">
+                    <div class="w-2 h-2 rounded-full bg-gray-500"></div>
+                    <span class="text-xs font-bold text-gray-300">Auto-import</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Grid -->
+        <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            <!-- Project Cards will be injected here -->
+        </div>
+
+        <div id="empty-state" class="hidden text-center py-20">
+            <p class="text-gray-500">No projects yet. Start creating!</p>
+            <a href="/app"
+                class="inline-block mt-4 bg-white text-black px-6 py-2 rounded-full font-bold text-sm hover:bg-gray-200 transition">Create
+                New</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    let pollInterval;
+
+    async function loadProjects() {
+        try {
+            const res = await fetch('/jobs');
+            if (!res.ok) return;
+            const data = await res.json();
+            const jobs = data.jobs || [];
+
+            document.getElementById('project-count').textContent = jobs.length;
+            const grid = document.getElementById('projects-grid');
+            const empty = document.getElementById('empty-state');
+
+            if (jobs.length === 0) {
+                empty.classList.remove('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+            grid.innerHTML = '';
+
+            let hasActiveJobs = false;
+
+            jobs.forEach(job => {
+                const card = document.createElement('div');
+                card.className = 'group relative bg-[#111] rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition cursor-pointer';
+                card.onclick = () => window.location.href = `/app/jobs/${job.id}/clips`;
+
+                // Status Logic
+                let statusColor = 'bg-yellow-500';
+                let statusText = job.state;
+                let progress = job.progress || 0;
+
+                if (job.state === 'SUCCESS') {
+                    statusColor = 'bg-green-500';
+                } else if (job.state === 'FAILURE') {
+                    statusColor = 'bg-red-500';
+                } else if (job.state === 'PENDING' || job.state === 'STARTED') {
+                    statusColor = 'bg-blue-500 animate-pulse';
+                    hasActiveJobs = true;
+                }
+
+                card.innerHTML = `
+    <div class="aspect-video bg-[#000] relative">
+        <!-- Thumbnail Placeholder -->
+        <div class="absolute inset-0 flex items-center justify-center text-gray-700">
+            <i class="fa-solid fa-play text-4xl opacity-20 group-hover:opacity-40 transition"></i>
+        </div>
+
+        <!-- Progress Bar (Overlay) -->
+        ${(job.state === 'PENDING' || job.state === 'STARTED') ? `
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+            <div class="h-full bg-blue-500 transition-all duration-500" style="width: ${progress}%"></div>
+        </div>
+        ` : ''}
+    </div>
+
+    <div class="p-4 space-y-3">
+        <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+            <span class="bg-[#1a1a1a]/90 text-white px-2 py-1 rounded border border-white/10">Free Plan</span>
+            ${job.state === 'PENDING' || job.state === 'STARTED'
+                        ? `<span class="bg-blue-500/15 text-blue-300 px-2 py-1 rounded border border-blue-500/40 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i> Processing</span>`
+                        : ''}
+            ${job.state === 'SUCCESS'
+                        ? `<span class="bg-green-500/15 text-green-300 px-2 py-1 rounded border border-green-500/30">Ready</span>`
+                        : ''}
+        </div>
+        <h3 class="text-white font-bold text-sm leading-snug" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5rem;">
+            ${job.source_name || 'Untitled Project'}
+        </h3>
+        <div class="flex items-center justify-between text-[11px] text-gray-500 font-medium">
+            <span>${new Date(job.created_at || Date.now()).toLocaleDateString()}</span>
+            <div class="flex items-center gap-1">
+                <div class="w-1.5 h-1.5 rounded-full ${statusColor}"></div>
+                <span>${statusText} ${progress > 0 && progress < 100 ? `(${progress}%)` : ''}</span>
+            </div>
+        </div>
+    </div>
+`;
+                grid.appendChild(card);
+            });
+
+            // Poll if active jobs exist
+            if (hasActiveJobs) {
+                if (!pollInterval) {
+                    pollInterval = setTimeout(loadProjects, 3000);
+                }
+            } else {
+                clearTimeout(pollInterval);
+                pollInterval = null;
+            }
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    loadProjects();
+
+    // Cleanup on navigate away
+    window.addEventListener('beforeunload', () => {
+        if (pollInterval) clearTimeout(pollInterval);
+    });
+</script>
+{% endblock %}

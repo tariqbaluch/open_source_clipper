@@ -1,0 +1,157 @@
+{% extends "base_step.html" %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-4">
+
+    <!-- Main Card -->
+    <div class="w-full max-w-2xl bg-[#111] border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10">
+
+        <form action="/app/prompt" method="POST" class="space-y-8">
+
+            <!-- Header -->
+            <div class="space-y-1">
+                <h2 class="text-xl font-bold text-white">Include specific moments</h2>
+                <a href="#" class="text-xs text-gray-500 hover:text-gray-300 underline">Not sure how to prompt? learn
+                    more</a>
+            </div>
+
+            <!-- Prompt Input -->
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-wand-magic-sparkles text-yellow-500"></i>
+                </div>
+                <input type="text" name="prompt"
+                    class="w-full bg-white text-black text-sm rounded-xl py-4 pl-12 pr-4 border border-white/10 focus:outline-none focus:border-white/30 transition placeholder-gray-500"
+                    placeholder="Find me a moment that can do viral on Social Media">
+            </div>
+
+            <!-- Processing Timeframe Slider -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Processing timeframe</label>
+                    <span class="text-xs text-gray-500">0:00:00 - {{ video_duration_label or 'full video' }}</span>
+                </div>
+
+                <div class="relative h-2 bg-[#1a1a1a] rounded-full">
+                    <!-- Track -->
+                    <div class="absolute inset-y-0 left-0 right-0 bg-white/20 rounded-full"></div>
+                    <!-- Active Range (Mock) -->
+                    <div class="absolute inset-y-0 left-0 w-full bg-white rounded-full opacity-20"></div>
+
+                    <!-- Handles (Mock) -->
+                    <div
+                        class="absolute top-1/2 -translate-y-1/2 left-0 w-4 h-4 bg-[#111] border-2 border-white rounded-full cursor-pointer hover:scale-110 transition">
+                    </div>
+                    <div
+                        class="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-4 bg-[#111] border-2 border-white rounded-full cursor-pointer hover:scale-110 transition">
+                    </div>
+                </div>
+
+                <div class="flex justify-between text-[10px] text-gray-600 font-mono">
+                    <span>0:00:00</span>
+                    <span>{{ video_duration_label or 'full video' }}</span>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="pt-4 flex items-center gap-4">
+                <a href="/app/options"
+                    class="flex-1 text-center text-sm text-gray-400 hover:text-white py-3 transition">Back</a>
+                <button type="submit"
+                    class="flex-[2] bg-white text-black font-bold text-sm py-3 rounded-xl hover:bg-gray-200 transition transform active:scale-[0.99]">
+                    Get clips in 1 click <i class="fa-solid fa-bolt ml-2 text-yellow-600"></i>
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>
+
+<!-- Success Modal -->
+<div id="success-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-[#111] border border-white/10 rounded-2xl p-8 max-w-sm w-full mx-4 text-center space-y-6 transform transition-all scale-95 opacity-0"
+        id="modal-content">
+        <div class="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto">
+            <i class="fa-solid fa-check text-2xl text-green-500"></i>
+        </div>
+        <div class="space-y-2">
+            <h3 class="text-xl font-bold text-white">Project Submitted!</h3>
+            <p class="text-gray-400 text-sm">Your video is being processed. We'll notify you when your clips are ready.
+            </p>
+        </div>
+        <div class="w-full bg-white/5 rounded-full h-1 overflow-hidden">
+            <div class="h-full bg-green-500 animate-progress origin-left" style="width: 100%"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes progress {
+        from {
+            transform: scaleX(0);
+        }
+
+        to {
+            transform: scaleX(1);
+        }
+    }
+
+    .animate-progress {
+        animation: progress 2s linear;
+    }
+</style>
+
+<script>
+    const form = document.querySelector('form');
+    const modal = document.getElementById('success-modal');
+    const modalContent = document.getElementById('modal-content');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Disable button and show loading state
+        submitBtn.disabled = true;
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch('/app/prompt', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    // Show modal
+                    modal.classList.remove('hidden');
+                    // Animate in
+                    requestAnimationFrame(() => {
+                        modalContent.classList.remove('scale-95', 'opacity-0');
+                        modalContent.classList.add('scale-100', 'opacity-100');
+                    });
+
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 2000);
+                }
+            } else {
+                console.error('Submission failed');
+                const errorData = await response.json().catch(() => ({}));
+                alert(errorData.error || 'Something went wrong. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Network error. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+/* Custom styles for the dashboard overhaul */
+
+body {
+    background-color: #000000; /* Deep black background */
+    font-family: 'Inter', sans-serif; /* Modern font */
+}
+
+/* Large background text "OpusClip" */
+.opus-bg-text {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 15vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.03);
+    pointer-events: none;
+    z-index: 0;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* Ensure content is above the background text */
+.content-layer {
+    position: relative;
+    z-index: 10;
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #111;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Feature Icon Hover Effect */
+.feature-icon-btn {
+    transition: all 0.2s ease;
+}
+.feature-icon-btn:hover {
+    transform: translateY(-2px);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Input focus ring custom */
+.custom-focus:focus-within {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}

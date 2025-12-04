@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard - Clips</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+</head>
+
+<body class="h-full bg-gray-900 text-gray-100">
+  <div class="min-h-screen flex flex-row">
+    <!-- Sidebar (icons only, non-functional for now) -->
+    <aside class="hidden md:flex flex-col items-center gap-4 pt-6 px-3 bg-black/40 border-r border-white/5 w-14">
+      <div class="h-8 w-8 rounded-full bg-pink-500 flex items-center justify-center text-xs font-bold">A</div>
+      <div class="flex-1 flex flex-col items-center gap-3 mt-6 text-gray-500 text-xs">
+        <span class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">🏠</span>
+        <span class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">🎬</span>
+        <span class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">📂</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 flex flex-col">
+      <!-- Success toast -->
+      <div id="success_toast"
+        class="fixed top-3 inset-x-0 mx-auto w-full max-w-xs md:max-w-sm flex items-center justify-between px-3 py-2 rounded-full bg-emerald-500 text-[11px] md:text-xs text-white shadow-lg border border-emerald-300/60 hidden z-20">
+        <span class="font-medium truncate">Project submitted successfully</span>
+        <button id="toast_close" class="ml-3 text-white/80 hover:text-white">✕</button>
+      </div>
+      <!-- Top bar -->
+      <header class="flex items-center justify-between px-4 md:px-10 py-4 border-b border-white/5 bg-black/30">
+        <div class="text-xs md:text-sm bg-white/5 text-gray-200 px-3 py-2 rounded-full border border-white/10">
+          You are using the Free plan. Watermark and limited features apply.
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <button
+            class="hidden md:inline-flex items-center px-3 py-1.5 rounded-full bg-white text-gray-900 font-medium text-xs">
+            Upgrade
+          </button>
+        </div>
+      </header>
+
+      <!-- Center card -->
+      <section class="flex-1 flex flex-col items-start justify-start px-4 md:px-10 py-8 gap-8 overflow-y-auto">
+        <div class="w-full max-w-xl bg-[#111118] border border-white/5 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6"
+          id="dashboard-card">
+          <div class="space-y-1">
+            <h1 class="text-xl md:text-2xl font-semibold">Paste YouTube link or upload video</h1>
+            <p class="text-xs md:text-sm text-gray-400">
+              Enter your prompt for what you want to look at for the clips.
+            </p>
+          </div>
+
+          <!-- Source input: YouTube or Upload -->
+          <div class="space-y-3">
+            <input type="text" id="youtube_url" placeholder="Paste a YouTube link"
+              class="w-full rounded-2xl bg-white text-gray-900 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/40" />
+
+            <div class="flex items-center gap-3 text-xs text-gray-400">
+              <span class="text-[11px] uppercase tracking-wide text-gray-500">or</span>
+              <label
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 cursor-pointer">
+                <span class="text-xs">Upload</span>
+                <input type="file" id="video_file" class="hidden" />
+              </label>
+              <!-- Google Drive option could go here later -->
+            </div>
+          </div>
+
+          <!-- Prompt, processing timeframe, and clip length -->
+          <div class="space-y-3">
+            <div class="flex flex-col gap-3">
+              <div class="flex-1">
+                <label class="block text-xs mb-1 text-gray-400">Prompt</label>
+                <textarea id="prompt" rows="3"
+                  placeholder="e.g. Find the most motivational moments that can go viral on social media"
+                  class="w-full rounded-2xl bg-white text-gray-900 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 resize-none"></textarea>
+              </div>
+            </div>
+
+            <div class="space-y-1 mt-1">
+              <label class="block text-xs text-gray-400">Processing timeframe</label>
+              <div class="flex items-center gap-3">
+                <input id="timeframe_slider" type="range" min="0" max="100" value="100"
+                  class="w-full h-1.5 rounded-full bg-white/10 accent-white cursor-pointer" />
+                <span id="timeframe_label" class="text-[11px] text-gray-400 min-w-[42px] text-right">100%</span>
+              </div>
+            </div>
+
+            <div class="w-full md:w-40">
+              <label class="block text-xs mb-1 text-gray-400">Clip length</label>
+              <select id="duration_preset"
+                class="w-full rounded-2xl bg-white text-gray-900 border border-white/10 px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/40">
+                <option value="auto">Auto (&lt;90s)</option>
+                <option value="lt_30">&lt;30s</option>
+                <option value="30_59">30s–59s</option>
+                <option value="60_89">60s–89s</option>
+                <option value="90_180">90s–3m</option>
+                <option value="180_300">3m–5m</option>
+                <option value="300_600">5m–10m</option>
+                <option value="600_900">10m–15m</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Primary CTA -->
+          <div class="space-y-2">
+            <button type="button" id="get_clips_btn"
+              class="w-full rounded-2xl bg-white text-gray-900 py-3 text-sm font-semibold hover:bg-gray-100 transition">
+              Get clips in 1 click
+            </button>
+            <button type="button" id="sample_btn" class="w-full text-center text-xs text-gray-400 hover:text-gray-200">
+              Click here to try a sample project
+            </button>
+            <p id="status_msg" class="text-[11px] text-gray-400"></p>
+          </div>
+        </div>
+
+        <!-- Projects list -->
+        <div class="w-full max-w-4xl space-y-3">
+          <div class="flex items-center justify-between text-xs text-gray-400">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-gray-200">All projects</span>
+              <span id="jobs_count" class="text-gray-500"></span>
+            </div>
+          </div>
+
+          <div id="jobs_empty" class="text-xs text-gray-500">No projects yet. Submit a video to get started.</div>
+
+          <div id="jobs_list" class="space-y-3"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const youtubeInput = document.getElementById("youtube_url");
+      const fileInput = document.getElementById("video_file");
+      const promptInput = document.getElementById("prompt");
+      const durationSelect = document.getElementById("duration_preset");
+      const timeframeSlider = document.getElementById("timeframe_slider");
+      const timeframeLabel = document.getElementById("timeframe_label");
+      const getClipsBtn = document.getElementById("get_clips_btn");
+      const sampleBtn = document.getElementById("sample_btn");
+      const statusMsg = document.getElementById("status_msg");
+      const toastEl = document.getElementById("success_toast");
+      const toastClose = document.getElementById("toast_close");
+      let toastTimeout = null;
+      const jobsList = document.getElementById("jobs_list");
+      const jobsEmpty = document.getElementById("jobs_empty");
+      const jobsCount = document.getElementById("jobs_count");
+
+      function setStatus(msg) {
+        if (statusMsg) statusMsg.textContent = msg || "";
+      }
+
+      function disableUI(disabled) {
+        getClipsBtn.disabled = disabled;
+        getClipsBtn.classList.toggle("opacity-60", disabled);
+      }
+
+      function showToast() {
+        if (!toastEl) return;
+        toastEl.classList.remove("hidden");
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toastEl.classList.add("hidden");
+        }, 2000);
+      }
+
+      async function postForm(url, formData) {
+        const res = await fetch(url, {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Request failed");
+        }
+        return await res.json();
+      }
+
+      async function fetchJobs() {
+        try {
+          const res = await fetch("/jobs");
+          if (!res.ok) return;
+          const data = await res.json();
+          const jobs = data.jobs || [];
+
+          if (!jobs.length) {
+            if (jobsEmpty) jobsEmpty.classList.remove("hidden");
+            if (jobsList) jobsList.innerHTML = "";
+            if (jobsCount) jobsCount.textContent = "(0)";
+            return;
+          }
+
+          if (jobsEmpty) jobsEmpty.classList.add("hidden");
+          if (jobsCount) jobsCount.textContent = `(${jobs.length})`;
+
+          if (!jobsList) return;
+          jobsList.innerHTML = "";
+
+          jobs.forEach((job) => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className =
+              "w-full text-left bg-[#111118] border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 hover:border-white/20 transition";
+
+            const title = job.source_name || job.id;
+            const status = job.state;
+            const progress = typeof job.progress === "number" ? job.progress : 0;
+
+            let statusLabel = status;
+            if (status === "PENDING") statusLabel = "Pending";
+            else if (status === "STARTED") statusLabel = "Processing";
+            else if (status === "SUCCESS") statusLabel = "Completed";
+            else if (status === "FAILURE") statusLabel = "Failed";
+
+            card.innerHTML = `
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-sm font-medium truncate text-gray-100">${title}</p>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-gray-200">${statusLabel}</span>
+                  </div>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div class="h-full bg-white" style="width: ${progress}%"></div>
+                    </div>
+                    <span class="text-[11px] text-gray-400 w-10 text-right">${progress}%</span>
+                  </div>
+                </div>
+              `;
+
+            card.addEventListener("click", () => {
+              if (status === "SUCCESS") {
+                window.location.href = `/app/jobs/${job.id}/clips`;
+              } else {
+                window.location.href = `/app/jobs/${job.id}`;
+              }
+            });
+
+            jobsList.appendChild(card);
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function startUploadFlow(file) {
+        const chunkSize = 5 * 1024 * 1024; // 5MB
+        const totalChunks = Math.ceil(file.size / chunkSize);
+
+        // init upload
+        const initData = new FormData();
+        initData.append("filename", file.name);
+        initData.append("total_chunks", String(totalChunks));
+        const initRes = await postForm("/uploads/init", initData);
+        const uploadId = initRes.upload_id;
+
+        // upload chunks
+        for (let index = 0; index < totalChunks; index++) {
+          const start = index * chunkSize;
+          const end = Math.min(file.size, start + chunkSize);
+          const blob = file.slice(start, end);
+          const chunkData = new FormData();
+          chunkData.append("upload_id", uploadId);
+          chunkData.append("index", String(index));
+          chunkData.append("chunk", blob, file.name + ".part" + index);
+          setStatus(`Uploading chunk ${index + 1}/${totalChunks}...`);
+          await postForm("/uploads/chunk", chunkData);
+        }
+
+        // complete
+        const completeData = new FormData();
+        completeData.append("upload_id", uploadId);
+        const completeRes = await postForm("/uploads/complete", completeData);
+        return completeRes.video_path;
+      }
+
+      async function startPipeline(videoPath) {
+        const data = new FormData();
+        data.append("path", videoPath);
+        // default pipeline params for now
+        data.append("chunk_seconds", "30");
+        data.append("overlap_seconds", "2");
+        data.append("model_size", "base");
+        if (promptInput && promptInput.value.trim()) {
+          data.append("prompt", promptInput.value.trim());
+        }
+        if (durationSelect && durationSelect.value) {
+          data.append("duration_preset", durationSelect.value);
+        }
+        if (timeframeSlider) {
+          data.append("timeframe_percent", timeframeSlider.value || "100");
+        }
+        const res = await postForm("/pipeline", data);
+        return res.job_id;
+      }
+
+      async function startYoutubeFlow(url) {
+        const data = new FormData();
+        data.append("url", url);
+        if (promptInput && promptInput.value.trim()) {
+          data.append("prompt", promptInput.value.trim());
+        }
+        if (durationSelect && durationSelect.value) {
+          data.append("duration_preset", durationSelect.value);
+        }
+        if (timeframeSlider) {
+          data.append("timeframe_percent", timeframeSlider.value || "100");
+        }
+        const res = await postForm("/download/youtube", data);
+        return res.job_id;
+      }
+
+      getClipsBtn.addEventListener("click", async () => {
+        try {
+          disableUI(true);
+          setStatus("");
+
+          const youtubeUrl = youtubeInput.value.trim();
+          const file = fileInput.files && fileInput.files[0];
+
+          if (!youtubeUrl && !file) {
+            alert("Please paste a YouTube link or choose a video file.");
+            disableUI(false);
+            return;
+          }
+
+          if (youtubeUrl && file) {
+            alert("Please use either YouTube link OR file upload, not both.");
+            disableUI(false);
+            return;
+          }
+
+          if (file) {
+            setStatus("Uploading video...");
+            const videoPath = await startUploadFlow(file);
+            setStatus("Starting processing pipeline...");
+            const jobId = await startPipeline(videoPath);
+            showToast();
+            fetchJobs();
+            setTimeout(() => {
+              window.location.href = `/app/jobs/${jobId}`;
+            }, 800);
+            return;
+          }
+
+          if (youtubeUrl) {
+            setStatus("Starting YouTube download...");
+            const jobId = await startYoutubeFlow(youtubeUrl);
+            showToast();
+            fetchJobs();
+            setTimeout(() => {
+              window.location.href = `/app/jobs/${jobId}`;
+            }, 800);
+            return;
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Something went wrong while starting the job.");
+        } finally {
+          disableUI(false);
+        }
+      });
+
+      sampleBtn.addEventListener("click", () => {
+        youtubeInput.value = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+      });
+
+      fetchJobs();
+      setInterval(fetchJobs, 10000);
+
+      if (timeframeSlider && timeframeLabel) {
+        timeframeSlider.addEventListener("input", () => {
+          timeframeLabel.textContent = `${timeframeSlider.value}%`;
+        });
+      }
+
+      if (toastClose && toastEl) {
+        toastClose.addEventListener("click", () => {
+          toastEl.classList.add("hidden");
+          if (toastTimeout) clearTimeout(toastTimeout);
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

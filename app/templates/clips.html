@@ -1,0 +1,451 @@
+{% extends "base_step.html" %}
+
+{% block content %}
+<div class="w-full h-full flex flex-col px-6 py-6">
+
+  <!-- Top Bar -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <button
+        class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#1a1a1a] border border-white/10 text-white hover:bg-white/10 transition">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="flex items-center gap-2 text-gray-400 text-sm">
+        <i class="fa-brands fa-youtube"></i>
+        <span class="truncate max-w-[300px]">{{ job.source_name or 'Untitled Video' }}</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <button id="delete-selected-btn"
+        class="hidden bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-500/30 transition">
+        <i class="fa-solid fa-trash"></i> Delete Selected (<span id="selected-count">0</span>)
+      </button>
+      <button
+        class="bg-[#1a1a1a] border border-white/10 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-white/10 transition">
+        Remove watermark
+      </button>
+      <i class="fa-regular fa-bell text-gray-400 hover:text-white cursor-pointer"></i>
+      <div class="flex items-center gap-1 text-yellow-500 font-bold text-sm">
+        <i class="fa-solid fa-bolt"></i> 37
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="bg-[#111] border border-white/10 rounded-xl p-2 flex items-center gap-4 mb-6">
+    <div class="flex-1 relative group">
+      <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+        <i class="fa-solid fa-magnifying-glass text-gray-500"></i>
+      </div>
+      <input type="text" id="search-input"
+        class="w-full bg-transparent text-white text-sm py-2 pl-10 pr-4 focus:outline-none placeholder-gray-600"
+        placeholder="Find keywords or moments...">
+    </div>
+  </div>
+
+  <!-- Controls Row -->
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-4">
+      <button id="select-mode-btn"
+        class="flex items-center gap-2 text-gray-400 hover:text-white text-xs font-medium transition">
+        <i class="fa-regular fa-circle-check"></i> Select
+      </button>
+      <button class="flex items-center gap-2 text-gray-400 hover:text-white text-xs font-medium transition">
+        <i class="fa-solid fa-filter"></i> Filter
+      </button>
+      <button class="flex items-center gap-2 text-gray-400 hover:text-white text-xs font-medium transition">
+        <i class="fa-solid fa-arrow-down-short-wide"></i> Sort
+      </button>
+      <button class="flex items-center gap-2 text-gray-400 hover:text-white text-xs font-medium transition">
+        <i class="fa-solid fa-download"></i> Export
+      </button>
+    </div>
+    <div class="text-xs font-bold text-gray-500">
+      Original clips (<span id="clip-count">0</span>)
+    </div>
+  </div>
+
+  <!-- Clips Grid -->
+  <div id="clips-grid"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-20">
+    <!-- Clips injected here -->
+  </div>
+
+  <!-- Empty State -->
+  <div id="empty-state" class="hidden flex flex-col items-center justify-center h-64 text-gray-500">
+    <i class="fa-solid fa-film text-4xl mb-4 opacity-20"></i>
+    <p>No clips found.</p>
+  </div>
+
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+  <div class="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
+    <h3 class="text-white text-lg font-bold mb-4">Delete Clips?</h3>
+    <p class="text-gray-400 text-sm mb-6">Are you sure you want to delete <span id="delete-count">1</span> clip(s)? This
+      action cannot be undone.</p>
+    <div class="flex gap-3">
+      <button id="cancel-delete-btn"
+        class="flex-1 bg-white/10 text-white font-bold py-2 rounded-lg hover:bg-white/20 transition">
+        Cancel
+      </button>
+      <button id="confirm-delete-btn"
+        class="flex-1 bg-red-500 text-white font-bold py-2 rounded-lg hover:bg-red-600 transition">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const jobId = "{{ job.id }}";
+  const clipsList = document.getElementById('clips-grid');
+  const emptyEl = document.getElementById('empty-state');
+  const clipCountEl = document.getElementById('clip-count');
+  const selectModeBtn = document.getElementById('select-mode-btn');
+  const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+  const selectedCountEl = document.getElementById('selected-count');
+  const deleteModal = document.getElementById('delete-modal');
+  const deleteCountEl = document.getElementById('delete-count');
+  const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+  const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+  const searchInput = document.getElementById('search-input');
+
+  let resumeTriggered = false;
+
+  let selectMode = false;
+  let selectedClips = new Set();
+  let allClips = [];
+  let pendingDeleteAction = null;
+  // currentQuery: committed search (after Enter) used for filtering
+  // highlightQuery: live text used for highlighting & outlining while typing
+  let currentQuery = '';
+  let highlightQuery = '';
+
+  // Toggle select mode
+  selectModeBtn.addEventListener('click', () => {
+    selectMode = !selectMode;
+    selectedClips.clear();
+    updateSelectMode();
+    renderClips();
+  });
+
+  function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function highlightText(text) {
+    if (!highlightQuery) return text || '';
+    const safeText = text || '';
+    try {
+      const pattern = new RegExp('(' + escapeRegExp(highlightQuery) + ')', 'gi');
+      return safeText.replace(pattern, '<span class="bg-yellow-300/30 text-yellow-100">$1<\/span>');
+    } catch (e) {
+      return safeText;
+    }
+  }
+
+  function filteredClips() {
+    if (!currentQuery) return allClips;
+    const q = currentQuery.toLowerCase();
+
+    return allClips.filter((clip) => {
+      const title = (clip.title || '').toLowerCase();
+      const desc = (clip.description || clip.why || '').toLowerCase();
+      const summary = (clip.summary || '').toLowerCase();
+      const transcript = (clip.transcript || clip.transcript_text || '').toLowerCase();
+      return (
+        title.includes(q) ||
+        desc.includes(q) ||
+        summary.includes(q) ||
+        transcript.includes(q)
+      );
+    });
+  }
+
+  // Delete selected clips
+  deleteSelectedBtn.addEventListener('click', () => {
+    if (selectedClips.size === 0) return;
+    pendingDeleteAction = { type: 'bulk', ids: Array.from(selectedClips) };
+    deleteCountEl.textContent = selectedClips.size;
+    deleteModal.classList.remove('hidden');
+  });
+
+  // Confirm delete
+  confirmDeleteBtn.addEventListener('click', async () => {
+    if (!pendingDeleteAction) return;
+
+    try {
+      if (pendingDeleteAction.type === 'single') {
+        await deleteSingleClip(pendingDeleteAction.id);
+      } else if (pendingDeleteAction.type === 'bulk') {
+        await deleteBulkClips(pendingDeleteAction.ids);
+      }
+
+      deleteModal.classList.add('hidden');
+      pendingDeleteAction = null;
+      selectedClips.clear();
+      selectMode = false;
+      updateSelectMode();
+      fetchClips();
+    } catch (e) {
+      alert('Failed to delete clips: ' + e.message);
+    }
+  });
+
+  // Cancel delete
+  cancelDeleteBtn.addEventListener('click', () => {
+    deleteModal.classList.add('hidden');
+    pendingDeleteAction = null;
+  });
+
+  // Close modal on outside click
+  deleteModal.addEventListener('click', (e) => {
+    if (e.target === deleteModal) {
+      deleteModal.classList.add('hidden');
+      pendingDeleteAction = null;
+    }
+  });
+
+  function updateSelectMode() {
+    if (selectMode) {
+      selectModeBtn.classList.add('text-purple-400');
+      deleteSelectedBtn.classList.remove('hidden');
+    } else {
+      selectModeBtn.classList.remove('text-purple-400');
+      deleteSelectedBtn.classList.add('hidden');
+    }
+    selectedCountEl.textContent = selectedClips.size;
+  }
+
+  async function deleteSingleClip(clipId) {
+    const res = await fetch(`/jobs/${jobId}/clips/${clipId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
+    return await res.json();
+  }
+
+  async function deleteBulkClips(clipIds) {
+    const res = await fetch(`/jobs/${jobId}/clips/delete-bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clip_ids: clipIds })
+    });
+    if (!res.ok) throw new Error('Bulk delete failed');
+    return await res.json();
+  }
+
+  async function fetchClips() {
+    try {
+      const res = await fetch(`/jobs/${jobId}`);
+      if (!res.ok) throw new Error("Failed to fetch job");
+      const data = await res.json();
+
+      // Auto-resume job processing once if it is not yet successful
+      if (!resumeTriggered && data.state !== 'SUCCESS') {
+        resumeTriggered = true;
+        try {
+          await fetch(`/jobs/${jobId}/resume`, { method: 'POST' });
+        } catch (e) {
+          console.error('Failed to trigger resume for job', jobId, e);
+        }
+      }
+
+      // If job is still running, poll again
+      if (data.state === 'PENDING' || data.state === 'STARTED') {
+        emptyEl.innerHTML = `
+            <div class="flex flex-col items-center gap-4">
+                <i class="fa-solid fa-spinner fa-spin text-4xl text-white"></i>
+                <p class="text-gray-400">Processing video... ${data.progress || 0}%</p>
+            </div>
+          `;
+        emptyEl.classList.remove('hidden');
+        setTimeout(fetchClips, 2000); // Poll every 2s
+        return;
+      }
+
+      allClips = data.result?.clips || [];
+      clipCountEl.textContent = allClips.length;
+
+      if (allClips.length === 0) {
+        emptyEl.innerHTML = `
+            <i class="fa-solid fa-film text-4xl mb-4 opacity-20"></i>
+            <p>No clips found.</p>
+        `;
+        emptyEl.classList.remove('hidden');
+        clipsList.innerHTML = '';
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      renderClips();
+
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function renderClips() {
+    const clips = filteredClips();
+    clipsList.innerHTML = '';
+
+    const displayQuery = highlightQuery || currentQuery;
+
+    if (!clips.length) {
+      emptyEl.innerHTML = displayQuery
+        ? `<p class="text-gray-400">No clips match "${displayQuery}".</p>`
+        : `<i class="fa-solid fa-film text-4xl mb-4 opacity-20"><\/i><p>No clips found.<\/p>`;
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    emptyEl.classList.add('hidden');
+
+    clips.forEach(clip => {
+      const div = document.createElement('div');
+      div.className = "bg-[#111] border border-white/10 rounded-xl overflow-hidden hover:border-white/30 transition group relative flex flex-col";
+
+      const isSelected = selectedClips.has(clip.id);
+      if (isSelected) {
+        div.classList.add('ring-2', 'ring-purple-500');
+      }
+
+      // Calculate duration
+      const duration = (clip.end || 0) - (clip.start || 0);
+      const durationStr = formatTime(duration);
+
+      const titleText = clip.title || 'Untitled Clip';
+      const descText = clip.description || clip.why || 'No description available.';
+      const highlightedTitle = highlightText(titleText);
+      const highlightedDesc = highlightText(descText);
+
+      div.innerHTML = `
+        <div class="relative aspect-[9/16] bg-black/50 group-hover:bg-black/40 transition cursor-pointer ${highlightQuery ? 'ring-1 ring-green-500/60' : ''}">
+
+            ${selectMode ? `
+            <div class="absolute top-2 left-2 z-30" onclick="event.stopPropagation()">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                    class="w-5 h-5 rounded bg-[#1a1a1a] border-gray-600 text-purple-500 focus:ring-0 cursor-pointer clip-checkbox"
+                    data-id="${clip.id}">
+            </div>
+            ` : ''}
+
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-600">
+                <i class="fa-solid fa-play text-3xl opacity-50 group-hover:opacity-100 transition"></i>
+            </div>
+
+            <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-mono text-white">
+                ${durationStr}
+            </div>
+
+            <div class="absolute top-2 right-2 bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs font-bold border border-green-500/30">
+                ${clip.overall || 0}
+            </div>
+        </div>
+
+        <div class="p-4 flex-1 flex flex-col">
+            <h3 class="text-white font-bold text-sm mb-1 line-clamp-2" title="${titleText}">
+                #${clip.index || '?'} <span>${highlightedTitle}<\/span>
+            </h3>
+            <p class="text-gray-500 text-xs mb-4 flex-1 max-h-20 overflow-y-auto pr-1">
+                ${highlightedDesc}
+            </p>
+
+            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                <a href="/app/jobs/${jobId}/clips/${clip.id}" 
+                   class="text-xs font-bold text-white hover:text-purple-400 transition flex items-center gap-2">
+                    View Details <i class="fa-solid fa-arrow-right"></i>
+                </a>
+                <button class="text-gray-500 hover:text-red-400 transition delete-single-btn" data-id="${clip.id}">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+      `;
+
+      // Add event listeners
+      const checkbox = div.querySelector('.clip-checkbox');
+      if (checkbox) {
+        checkbox.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            selectedClips.add(clip.id);
+          } else {
+            selectedClips.delete(clip.id);
+          }
+          updateSelectMode();
+          renderClips(); // Re-render to update styling
+        });
+      }
+
+      // Click on card to toggle selection if in select mode, or go to details
+      div.querySelector('.relative.aspect-\\[9\\/16\\]').addEventListener('click', () => {
+        if (selectMode) {
+          if (selectedClips.has(clip.id)) {
+            selectedClips.delete(clip.id);
+          } else {
+            selectedClips.add(clip.id);
+          }
+          updateSelectMode();
+          renderClips();
+        } else {
+          window.location.href = `/app/jobs/${jobId}/clips/${clip.id}`;
+        }
+      });
+
+      // Delete single button
+      const deleteBtn = div.querySelector('.delete-single-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pendingDeleteAction = { type: 'single', id: clip.id };
+          deleteCountEl.textContent = "1";
+          deleteModal.classList.remove('hidden');
+        });
+      }
+
+      clipsList.appendChild(div);
+    });
+  }
+
+  function formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return "00:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' && selectedClips.size > 0) {
+      deleteSelectedBtn.click();
+    }
+    if (e.key === 'Escape') {
+      if (!deleteModal.classList.contains('hidden')) {
+        cancelDeleteBtn.click();
+      } else if (selectMode) {
+        selectModeBtn.click();
+      }
+    }
+  });
+
+  // Search box behavior
+  if (searchInput) {
+    // While typing: update highlightQuery to visually mark matches but do NOT filter yet
+    searchInput.addEventListener('input', (e) => {
+      highlightQuery = (e.target.value || '');
+      renderClips();
+    });
+
+    // On Enter: commit the search and actually filter the clips
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        currentQuery = (searchInput.value || '').trim();
+        renderClips();
+      }
+    });
+  }
+
+  fetchClips();
+</script>
+{% endblock %}

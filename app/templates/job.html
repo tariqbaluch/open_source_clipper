@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Job status</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+    />
+  </head>
+  <body class="h-full bg-gray-900 text-gray-100">
+    <div class="min-h-screen flex flex-col items-center justify-center px-4">
+      <div class="w-full max-w-md bg-[#111118] border border-white/5 rounded-3xl shadow-2xl p-6 space-y-5">
+        <div class="space-y-1">
+          <p class="text-xs text-gray-400">Job ID</p>
+          <h1 class="text-sm font-mono" id="job_id_text"></h1>
+        </div>
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs text-gray-400">
+            <span>Status</span>
+            <span id="job_state">Loading...</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+            <div id="job_progress_bar" class="h-full bg-white transition-all" style="width: 0%"></div>
+          </div>
+          <p class="text-[11px] text-gray-400" id="job_info"></p>
+        </div>
+
+        <div class="space-y-2">
+          <button
+            type="button"
+            id="view_clips_btn"
+            class="w-full rounded-2xl bg-white text-gray-900 py-2.5 text-sm font-semibold hover:bg-gray-100 transition hidden"
+          >
+            View clips
+          </button>
+          <button
+            type="button"
+            id="back_btn"
+            class="w-full rounded-2xl bg-white/5 text-gray-200 py-2.5 text-sm font-medium hover:bg-white/10 transition"
+          >
+            Back to dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const jobId = window.location.pathname.split("/").pop();
+        const jobIdText = document.getElementById("job_id_text");
+        const stateEl = document.getElementById("job_state");
+        const progressBar = document.getElementById("job_progress_bar");
+        const infoEl = document.getElementById("job_info");
+        const viewClipsBtn = document.getElementById("view_clips_btn");
+        const backBtn = document.getElementById("back_btn");
+
+        jobIdText.textContent = jobId;
+
+        async function fetchStatus() {
+          try {
+            const res = await fetch(`/jobs/${jobId}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            stateEl.textContent = data.state;
+            const p = typeof data.progress === "number" ? data.progress : 0;
+            progressBar.style.width = `${p}%`;
+
+            if (data.info && data.info.stage) {
+              infoEl.textContent = `${data.info.stage} (${p}%)`;
+            } else {
+              infoEl.textContent = "";
+            }
+
+            if (data.state === "SUCCESS") {
+              viewClipsBtn.classList.remove("hidden");
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 3000);
+
+        viewClipsBtn.addEventListener("click", () => {
+          window.location.href = `/app/jobs/${jobId}/clips`;
+        });
+
+        backBtn.addEventListener("click", () => {
+          window.location.href = "/app";
+        });
+
+        window.addEventListener("beforeunload", () => clearInterval(interval));
+      })();
+    </script>
+  </body>
+</html>
