@@ -3,10 +3,10 @@
 {% block content %}
 <div class="w-full h-full flex flex-col items-center justify-center px-6 py-12">
 
-    <form action="/app/source" method="POST" enctype="multipart/form-data" class="w-full max-w-2xl">
-        <!-- Main Card -->
-        <div class="w-full bg-[#111] border border-white/10 rounded-2xl p-8 mb-8">
+    <!-- Single card that wraps the whole step -->
+    <div class="w-full max-w-3xl bg-[#111] border border-white/10 rounded-3xl px-6 py-8 md:px-10 md:py-10 flex flex-col gap-8">
 
+        <form action="/app/source" method="POST" enctype="multipart/form-data" class="w-full">
             <!-- YouTube Input Section -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-400 mb-3">Drop a YouTube link</label>
@@ -53,53 +53,54 @@
                 <i class="fa-brands fa-google-drive"></i>
                 <span>Import from Google Drive</span>
             </button>
-        </div>
-    </form>
+        </form>
 
-    <!-- Feature Icons Row -->
-    <div class="w-full max-w-2xl grid grid-cols-4 md:grid-cols-7 gap-4">
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-scissors text-purple-500"></i>
+        <!-- Feature Icons Row -->
+        <div class="w-full grid grid-cols-4 md:grid-cols-7 gap-4">
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-scissors text-purple-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Long to shorts</span>
             </div>
-            <span class="text-[10px] text-gray-500">Long to shorts</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-closed-captioning text-blue-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-closed-captioning text-blue-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">AI Captions</span>
             </div>
-            <span class="text-[10px] text-gray-500">AI Captions</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Auto-edit</span>
             </div>
-            <span class="text-[10px] text-gray-500">Auto-edit</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-crop text-green-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-crop text-green-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Auto-crop</span>
             </div>
-            <span class="text-[10px] text-gray-500">Auto-crop</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-eye text-yellow-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-eye text-yellow-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Face track</span>
             </div>
-            <span class="text-[10px] text-gray-500">Face track</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-language text-red-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-language text-red-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Translate</span>
             </div>
-            <span class="text-[10px] text-gray-500">Translate</span>
-        </div>
-        <div class="flex flex-col items-center gap-2 text-center">
-            <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
-                <i class="fa-solid fa-share-nodes text-orange-500"></i>
+            <div class="flex flex-col items-center gap-2 text-center">
+                <div class="w-12 h-12 bg-[#111] border border-white/10 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-share-nodes text-orange-500"></i>
+                </div>
+                <span class="text-[10px] text-gray-500">Auto-post</span>
             </div>
-            <span class="text-[10px] text-gray-500">Auto-post</span>
         </div>
+
     </div>
 
 </div>

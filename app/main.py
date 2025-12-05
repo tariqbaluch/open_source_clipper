@@ -55,17 +55,22 @@ app.include_router(highlights_router)
 app.mount("/media", StaticFiles(directory=str(STORAGE_DIR)), name="media")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=RedirectResponse)
 def index(request: Request):
     """Render a simple login page that starts Google OAuth."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    # Temporary hack: if no user in session, create a demo user and jump into the app
+    user = request.session.get("user")
+    if not user:
+        request.session["user"] = {"id": "demo", "email": "demo@example.com"}
+    return RedirectResponse(url="/app/source", status_code=302)
 
 @app.get("/app", response_class=RedirectResponse)
 def app_dashboard(request: Request):
     """Redirect to the first step of the wizard."""
     user = request.session.get("user")
     if not user:
-        return RedirectResponse(url="/", status_code=302)
+        user = {"id": "demo", "email": "demo@example.com"}
+        request.session["user"] = user
     # Initialize or clear job draft
     request.session["job_draft"] = {}
     return RedirectResponse(url="/app/source", status_code=302)
@@ -74,13 +79,17 @@ def app_dashboard(request: Request):
 def app_projects(request: Request):
     """Render the projects list."""
     user = request.session.get("user")
-    if not user: return RedirectResponse(url="/", status_code=302)
+    if not user:
+        user = {"id": "demo", "email": "demo@example.com"}
+        request.session["user"] = user
     return templates.TemplateResponse("projects.html", {"request": request, "user": user})
 
 @app.get("/app/source", response_class=HTMLResponse)
 def step_source_get(request: Request):
     user = request.session.get("user")
-    if not user: return RedirectResponse(url="/", status_code=302)
+    if not user:
+        user = {"id": "demo", "email": "demo@example.com"}
+        request.session["user"] = user
     return templates.TemplateResponse("step_source.html", {"request": request, "user": user})
 
 @app.post("/app/source")
@@ -120,7 +129,9 @@ async def step_source_post(
 @app.get("/app/options", response_class=HTMLResponse)
 def step_options_get(request: Request):
     user = request.session.get("user")
-    if not user: return RedirectResponse(url="/", status_code=302)
+    if not user:
+        user = {"id": "demo", "email": "demo@example.com"}
+        request.session["user"] = user
     return templates.TemplateResponse("step_options.html", {"request": request, "user": user})
 
 @app.post("/app/options")
@@ -142,7 +153,9 @@ async def step_options_post(
 @app.get("/app/prompt", response_class=HTMLResponse)
 def step_prompt_get(request: Request):
     user = request.session.get("user")
-    if not user: return RedirectResponse(url="/", status_code=302)
+    if not user:
+        user = {"id": "demo", "email": "demo@example.com"}
+        request.session["user"] = user
     draft = request.session.get("job_draft", {})
     video_duration_label = None
 
@@ -183,7 +196,9 @@ async def step_prompt_post(
 ):
     try:
         user = request.session.get("user")
-        if not user: return RedirectResponse(url="/", status_code=302)
+        if not user:
+            user = {"id": "demo", "email": "demo@example.com"}
+            request.session["user"] = user
         
         draft = request.session.get("job_draft", {})
         draft["prompt"] = prompt or ""

@@ -36,11 +36,25 @@ FONT_PATH = "C:/Windows/Fonts/Arial.ttf" # update for your system
 def map_duration_preset(preset: str | None) -> (float, float):
     """Translate a UI duration_preset string into (min_sec, max_sec).
 
-    These bounds are used by the highlight generator to enforce clip length
-    per job. If an unknown or missing preset is provided, fall back to a
-    reasonable default.
+    The UI currently exposes *human-readable* labels such as:
+        - "Auto (<90s)"
+        - "<30s"
+        - "30s-60s"
+        - "60s-90s"
+        - "90s-3m"
+
+    Earlier versions of the code passed compact keys like "30_59". This
+    helper accepts both the old internal keys and the new labels so the
+    frontend does not need to change.
     """
-    mapping = {
+
+    if preset is None:
+        return (MIN_SEC, MAX_SEC)
+
+    raw = str(preset).strip().lower()
+
+    # Fast path: keep support for older internal keys
+    legacy_mapping = {
         "lt_30":   (5.0, 29.0),
         "30_59":   (30.0, 59.0),
         "60_89":   (60.0, 89.0),
@@ -49,9 +63,52 @@ def map_duration_preset(preset: str | None) -> (float, float):
         "300_600": (300.0, 600.0),
         "600_900": (600.0, 900.0),
         "auto":    (MIN_SEC, MAX_SEC),
-        None:       (MIN_SEC, MAX_SEC),
     }
-    return mapping.get(preset, (MIN_SEC, MAX_SEC))
+    if raw in legacy_mapping:
+        return legacy_mapping[raw]
+
+    # Normalize some common human-readable labels from the UI.
+    # We intentionally parse by meaning instead of exact string match so
+    # small wording tweaks do not break behavior.
+
+    # Auto / default
+    if "auto" in raw:
+        return (MIN_SEC, MAX_SEC)
+
+    # Convert minutes if present (e.g. "90s-3m")
+    def _parse_bounds(text: str) -> tuple[float, float] | None:
+        import re
+
+        # Extract all number+unit tokens like 30s, 3m
+        tokens = re.findall(r"(\d+)(s|sec|secs|seconds|m|min|mins|minutes)?", text)
+        if not tokens:
+            return None
+
+        values = []
+        for num, unit in tokens:
+            v = float(num)
+            unit = (unit or "s").lower()
+            if unit.startswith("m"):
+                v *= 60.0
+            values.append(v)
+
+        if len(values) == 1:
+            # Single number like "<30s" – treat as (5, value)
+            return (5.0, values[0])
+        else:
+            return (min(values), max(values))
+
+    # Handle forms like "<30s", "30s-60s", "60s–90s", "90s-3m"
+    bounds = _parse_bounds(raw)
+    if bounds is not None:
+        min_sec, max_sec = bounds
+        # Clamp to at least a few seconds and ensure min<=max
+        min_sec = max(5.0, float(min_sec))
+        max_sec = max(min_sec, float(max_sec))
+        return (min_sec, max_sec)
+
+    # Fallback to defaults if nothing matched
+    return (MIN_SEC, MAX_SEC)
 
 
 # ---------------- PROMPT ----------------
