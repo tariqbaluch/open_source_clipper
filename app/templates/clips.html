@@ -288,10 +288,28 @@
 
       // If job is still running, show spinner and poll again
       if (data.state === 'PENDING' || data.state === 'STARTED') {
+        // Prefer the same progress value used in the Projects list so
+        // both views stay in sync. Fallback to this job's own progress
+        // field if the list call fails for any reason.
+        let progress = typeof data.progress === 'number' ? data.progress : 0;
+        try {
+          const listRes = await fetch('/jobs');
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            const jobs = Array.isArray(listData.jobs) ? listData.jobs : [];
+            const me = jobs.find(j => j.id === jobId);
+            if (me && typeof me.progress === 'number') {
+              progress = me.progress;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to sync progress from jobs list', e);
+        }
+
         emptyEl.innerHTML = `
             <div class="flex flex-col items-center gap-4">
                 <i class="fa-solid fa-spinner fa-spin text-4xl text-white"></i>
-                <p class="text-gray-400">Processing video... ${data.progress || 0}%</p>
+                <p class="text-gray-400">Processing video... ${progress || 0}%</p>
             </div>
           `;
         emptyEl.classList.remove('hidden');
